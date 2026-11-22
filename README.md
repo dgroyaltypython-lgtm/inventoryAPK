@@ -64,3 +64,8 @@ The included release build uses the Android debug signing key so it can be insta
 - Existing opening stock and minimum stock values are retained from the workbook.
 - The 21 new non-veg items start with opening stock `0` and minimum stock `1`. Change these minimums in the Stock screen to match actual usage and supplier cycles.
 - The workbook already contained the specific fish and eggs named in the request, so the app keeps those entries and adds more varieties/cuts without duplicating them.
+
+
+## Android Gradle 9 compatibility
+
+The Android build now uses AGP 9.3.1 built-in Kotlin and the new AGP DSL. The app module no longer applies the legacy Kotlin Gradle plugin and uses `kotlin.compilerOptions` for the Java 17 bytecode target. See `BUILD_FIX_AGP9_BUILTIN_KOTLIN.md`.
