@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROPS="$SCRIPT_DIR/gradle/wrapper/gradle-wrapper.properties"
+DIST_URL="$(sed -n 's/^distributionUrl=//p' "$PROPS" | sed 's/\\:/:/g')"
+VERSION="$(basename "$DIST_URL" | sed -E 's/^gradle-([0-9.]+)-bin.zip$/\1/')"
+GRADLE_HOME_BASE="${GRADLE_USER_HOME:-$HOME/.gradle}/wrapper/dists/coastal-gradle-$VERSION"
+GRADLE_BIN="$(find "$GRADLE_HOME_BASE" -type f -path '*/bin/gradle' 2>/dev/null | head -n 1 || true)"
+if [[ -z "$GRADLE_BIN" ]]; then
+  mkdir -p "$GRADLE_HOME_BASE"
+  ZIP="$GRADLE_HOME_BASE/gradle-$VERSION-bin.zip"
+  echo "Downloading Gradle $VERSION (first build only)..."
+  curl --fail --location --retry 3 "$DIST_URL" --output "$ZIP"
+  unzip -q -o "$ZIP" -d "$GRADLE_HOME_BASE"
+  GRADLE_BIN="$GRADLE_HOME_BASE/gradle-$VERSION/bin/gradle"
+fi
+exec "$GRADLE_BIN" "$@"
