@@ -32,7 +32,7 @@ Codemagic currently lists 500 free Mac mini M2 build minutes per month for perso
 
 ## Local build (optional)
 
-Install Flutter stable (Flutter 3.44 or later) and Android SDK, then run:
+Install Flutter stable (Flutter 3.50 or later recommended for this toolchain) and Android SDK, then run:
 
 ```bash
 flutter pub get
@@ -43,7 +43,7 @@ flutter build apk --release
 
 APK output: `build/app/outputs/flutter-apk/app-release.apk`.
 
-The Gradle launcher downloads and caches the pinned Gradle 8.14 distribution on the first build, then reuses it. The build runner needs outbound network access to `services.gradle.org` for that first download.
+The Android toolchain is aligned with the Flutter 3.50 template: Gradle 9.5.0, Android Gradle Plugin 9.3.1, Kotlin Gradle Plugin 2.4.20, and Java 17+. The existing Kotlin Gradle configuration is retained using Flutter's documented temporary compatibility flags (`android.builtInKotlin=false` and `android.newDsl=false`). The Gradle wrapper downloads and caches Gradle 9.5.0 on the first build; the runner needs outbound network access to `services.gradle.org` for that first download.
 
 ## Local database and report files
 
