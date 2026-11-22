@@ -25,7 +25,12 @@ android {
         release {
             // Debug signing is intended for installable test builds only.
             signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = false
+
+            // AGP 9.3+ requires code and resource shrinking to be enabled together.
+            // This new DSL enables both R8 code optimization and resource shrinking.
+            optimization {
+                enable = true
+            }
         }
     }
 }
