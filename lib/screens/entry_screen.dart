@@ -21,6 +21,7 @@ class _EntryScreenState extends State<EntryScreen> {
   final _billRef = TextEditingController();
   final _staff = TextEditingController();
   final _notes = TextEditingController();
+  final _itemSearch = TextEditingController();
 
   List<InventoryItem> _items = [];
   String? _selectedCode;
@@ -52,6 +53,7 @@ class _EntryScreenState extends State<EntryScreen> {
     _billRef.dispose();
     _staff.dispose();
     _notes.dispose();
+    _itemSearch.dispose();
     super.dispose();
   }
 
@@ -70,6 +72,8 @@ class _EntryScreenState extends State<EntryScreen> {
   @override
   Widget build(BuildContext context) {
     final selected = _selectedItem;
+    final query = _itemSearch.text.trim().toLowerCase();
+    final visibleItems = _items.where((item) => query.isEmpty || '${item.nameEn} ${item.nameMr} ${item.code} ${item.category}'.toLowerCase().contains(query)).toList();
     return Scaffold(
       backgroundColor: canvas,
       appBar: AppBar(
@@ -106,12 +110,21 @@ class _EntryScreenState extends State<EntryScreen> {
               showSelectedIcon: false,
             ),
             const SizedBox(height: 19),
+            _label('SEARCH ITEM'),
+            TextField(
+              controller: _itemSearch,
+              onChanged: (_) => setState(() {}),
+              decoration: _decoration('Search English / Marathi name, category or code', Icons.search).copyWith(
+                suffixIcon: _itemSearch.text.isEmpty ? null : IconButton(onPressed: () { _itemSearch.clear(); setState(() {}); }, icon: const Icon(Icons.close)),
+              ),
+            ),
+            const SizedBox(height: 12),
             _label('ITEM'),
             DropdownButtonFormField<String>(
               value: _selectedCode,
               isExpanded: true,
               decoration: _decoration('Select item', Icons.inventory_2_outlined),
-              items: _items.map((item) => DropdownMenuItem<String>(
+              items: (visibleItems.any((item) => item.code == _selectedCode) || _selectedCode == null ? visibleItems : [...visibleItems, ..._items.where((item) => item.code == _selectedCode)]).map((item) => DropdownMenuItem<String>(
                 value: item.code,
                 child: Text('${item.nameEn} · ${item.code}', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
               )).toList(),

@@ -174,6 +174,38 @@ class AppDatabase {
     });
   }
 
+  /// Updates item details and sets the visible on-hand balance without deleting
+  /// historical transactions. The opening balance is recalculated against the
+  /// existing purchase/usage/wastage ledger.
+  Future<void> updateInventoryItem({
+    required String code,
+    required String nameEn,
+    required String nameMr,
+    required String category,
+    required String unit,
+    required double currentStock,
+    double? minimumStock,
+  }) async {
+    if (currentStock < 0) throw ArgumentError('Current stock cannot be negative.');
+    final db = await database;
+    await db.transaction((txn) async {
+      final movements = await txn.rawQuery("""
+        SELECT COALESCE(SUM(CASE
+          WHEN entry_type = 'Purchase' THEN quantity
+          WHEN entry_type IN ('Used', 'Wastage') THEN -quantity
+          ELSE 0 END), 0) AS net
+        FROM stock_entries WHERE item_code = ?
+      """, [code]);
+      final net = ((movements.first['net'] as num?) ?? 0).toDouble();
+      await txn.update('inventory', {
+        'name_en': nameEn.trim(), 'name_mr': nameMr.trim(),
+        'category': category.trim(), 'unit': unit,
+        'opening_stock': currentStock - net,
+        'minimum_stock': minimumStock,
+      }, where: 'code = ?', whereArgs: [code]);
+    });
+  }
+
   Future<void> updateMinimumStock(String code, double? minimum) async {
     final db = await database;
     await db.update(

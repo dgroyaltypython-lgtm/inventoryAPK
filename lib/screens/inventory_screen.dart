@@ -139,7 +139,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               const Spacer(),
                               const Icon(Icons.swipe_down_alt_outlined, color: Colors.black38, size: 15),
                               const SizedBox(width: 4),
-                              const Text('Tap an item to edit minimum', style: TextStyle(color: Colors.black45, fontSize: 10.5)),
+                              const Text('Tap an item to edit details & stock', style: TextStyle(color: Colors.black45, fontSize: 10.5)),
                             ]),
                           ),
                           for (final group in grouped.entries) ...[
@@ -225,6 +225,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(sheetContext);
+                _editItem(item);
+              },
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Edit item & current stock'),
+              style: OutlinedButton.styleFrom(foregroundColor: teal, padding: const EdgeInsets.symmetric(vertical: 14)),
+            ),
+          ),
+          const SizedBox(height: 9),
+          SizedBox(
+            width: double.infinity,
             child: FilledButton.icon(
               onPressed: () {
                 Navigator.pop(sheetContext);
@@ -249,6 +262,55 @@ class _InventoryScreenState extends State<InventoryScreen> {
           Text(value, style: const TextStyle(color: ink, fontWeight: FontWeight.w800, fontSize: 13)),
         ]),
       );
+
+  Future<void> _editItem(InventoryItem item) async {
+    final name = TextEditingController(text: item.nameEn);
+    final marathi = TextEditingController(text: item.nameMr);
+    final category = TextEditingController(text: item.category);
+    final stock = TextEditingController(text: item.currentStock.toString());
+    final minimum = TextEditingController(text: item.minimumStock?.toString() ?? '');
+    String unit = item.unit;
+    const units = ['kg', 'g', 'ltr', 'ml', 'pcs', 'tray', 'pack', 'box', 'bottle', 'dozen', 'bag', 'L', 'bunch', 'roll', 'can'];
+    if (!units.contains(unit)) unit = 'pcs';
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(builder: (context, updateDialog) => AlertDialog(
+        title: const Text('Edit inventory item'),
+        content: SizedBox(width: 440, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Item code: ${item.code}', style: const TextStyle(color: Colors.black54, fontSize: 11)),
+          TextField(controller: name, decoration: const InputDecoration(labelText: 'Item name (English)')),
+          TextField(controller: marathi, decoration: const InputDecoration(labelText: 'Item name (Marathi)')),
+          TextField(controller: category, decoration: const InputDecoration(labelText: 'Category')),
+          DropdownButtonFormField<String>(value: unit, decoration: const InputDecoration(labelText: 'Unit'), items: units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(), onChanged: (v) => updateDialog(() => unit = v ?? unit)),
+          TextField(controller: stock, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Current stock (${item.unit})')),
+          TextField(controller: minimum, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Minimum stock (blank = none)')),
+          const SizedBox(height: 8),
+          const Text('The current balance is adjusted while keeping the transaction history.', style: TextStyle(color: Colors.black54, fontSize: 11)),
+        ]))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () {
+            final q = double.tryParse(stock.text.trim());
+            final m = minimum.text.trim().isEmpty ? null : double.tryParse(minimum.text.trim());
+            if (name.text.trim().isEmpty || category.text.trim().isEmpty || q == null || q < 0 || (minimum.text.trim().isNotEmpty && (m == null || m < 0))) return;
+            Navigator.pop(dialogContext, true);
+          }, child: const Text('Save changes')),
+        ],
+      )),
+    );
+    if (saved == true) {
+      await AppDatabase.instance.updateInventoryItem(
+        code: item.code, nameEn: name.text, nameMr: marathi.text,
+        category: category.text, unit: unit,
+        currentStock: double.parse(stock.text.trim()),
+        minimumStock: minimum.text.trim().isEmpty ? null : double.parse(minimum.text.trim()),
+      );
+      refreshSignal.value++;
+      await _loadItems();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inventory item updated successfully.')));
+    }
+    name.dispose(); marathi.dispose(); category.dispose(); stock.dispose(); minimum.dispose();
+  }
 
   Future<void> _editMinimum(InventoryItem item) async {
     final controller = TextEditingController(text: item.minimumStock?.toString() ?? '');

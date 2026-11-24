@@ -16,12 +16,24 @@ class ReportService {
     decimalDigits: 2,
   );
 
+  static Future<List<Map<String, Object?>>> _matchingRows({
+    required DateTime start,
+    required DateTime end,
+    required String search,
+  }) async {
+    final rows = await AppDatabase.instance.getEntries(start: start, end: end);
+    final query = search.trim().toLowerCase();
+    if (query.isEmpty) return rows;
+    return rows.where((row) => '${row['name_en']} ${row['name_mr']} ${row['item_code']} ${row['category']} ${row['entry_type']} ${row['supplier']}'.toLowerCase().contains(query)).toList();
+  }
+
   static Future<String> exportCsv({
     required DateTime start,
     required DateTime end,
     required String label,
+    String search = '',
   }) async {
-    final rows = await AppDatabase.instance.getEntries(start: start, end: end);
+    final rows = await _matchingRows(start: start, end: end, search: search);
     final values = <List<Object?>>[
       [
         'Date', 'Entry Type', 'Item Code', 'Item Name', 'Marathi Name',
@@ -48,8 +60,9 @@ class ReportService {
     required DateTime start,
     required DateTime end,
     required String label,
+    String search = '',
   }) async {
-    final rows = await AppDatabase.instance.getEntries(start: start, end: end);
+    final rows = await _matchingRows(start: start, end: end, search: search);
     final purchases = rows
         .where((row) => row['entry_type'] == 'Purchase')
         .fold<double>(0, (sum, row) => sum + ((row['amount'] as num?)?.toDouble() ?? 0));

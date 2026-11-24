@@ -69,3 +69,12 @@ The included release build uses the Android debug signing key so it can be insta
 ## Android Gradle 9 compatibility
 
 The Android build now uses AGP 9.3.1 built-in Kotlin and the new AGP DSL. The app module no longer applies the legacy Kotlin Gradle plugin and uses `kotlin.compilerOptions` for the Java 17 bytecode target. See `BUILD_FIX_AGP9_BUILTIN_KOTLIN.md`.
+
+## Search and inventory editing (latest update)
+- Search is available in Home, Stock, Entry, Reports and Purchase Requirements modules.
+- Search matches English/Marathi item names, item codes, categories and (where relevant) supplier/transaction details.
+- The Stock module lets the user edit an existing item's English/Marathi name, category, unit, current stock and minimum stock.
+- Editing the current stock recalculates the stored opening balance against the existing transaction ledger; prior stock entries are retained.
+- Report search filters the on-screen summary and the exported CSV/PDF to the matching records.
+
+For stock correction, open **Stock**, tap an item, choose **Edit item & current stock**, enter the verified on-hand quantity and save.

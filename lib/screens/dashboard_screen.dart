@@ -19,6 +19,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<InventoryItem> _lowItems = [];
   List<Map<String, Object?>> _recent = [];
   bool _loading = true;
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -30,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     refreshSignal.removeListener(_load);
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -57,6 +59,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final hour = DateTime.now().hour;
     final greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
     final date = DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now());
+    final query = _searchController.text.trim().toLowerCase();
+    final lowItems = _lowItems.where((item) => query.isEmpty || '${item.nameEn} ${item.nameMr} ${item.code} ${item.category}'.toLowerCase().contains(query)).toList();
+    final recent = _recent.where((row) => query.isEmpty || '${row['name_en']} ${row['name_mr']} ${row['item_code']} ${row['category']} ${row['entry_type']}'.toLowerCase().contains(query)).toList();
     return Scaffold(
       backgroundColor: canvas,
       body: SafeArea(
@@ -68,6 +73,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: ListView(
                   padding: const EdgeInsets.only(bottom: 26),
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(hintText: 'Search dashboard stock or recent activity', prefixIcon: const Icon(Icons.search, color: teal), suffixIcon: _searchController.text.isEmpty ? null : IconButton(onPressed: () { _searchController.clear(); setState(() {}); }, icon: const Icon(Icons.close)), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)),
+                      ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                       child: Container(
@@ -115,25 +128,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     SectionTitle('Stock to watch', action: 'View all', onAction: widget.onGoToStock),
-                    if (_lowItems.isEmpty)
+                    if (lowItems.isEmpty)
                       const Padding(padding: EdgeInsets.symmetric(horizontal: 18), child: EmptyState(title: 'All minimums covered', message: 'No items currently need reordering.', icon: Icons.check_circle_outline))
                     else
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 18),
                         child: Container(
                           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE7EEEC))),
-                          child: Column(children: _lowItems.take(5).map((item) => _lowItem(item)).toList()),
+                          child: Column(children: lowItems.take(5).map((item) => _lowItem(item)).toList()),
                         ),
                       ),
                     const SectionTitle('Recent activity'),
-                    if (_recent.isEmpty)
+                    if (recent.isEmpty)
                       const Padding(padding: EdgeInsets.symmetric(horizontal: 18), child: EmptyState(title: 'No entries yet', message: 'Record your first purchase, usage or wastage entry.', icon: Icons.receipt_long_outlined))
                     else
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 18),
                         child: Container(
                           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE7EEEC))),
-                          child: Column(children: _recent.asMap().entries.map((entry) => _recentRow(entry.value)).toList()),
+                          child: Column(children: recent.asMap().entries.map((entry) => _recentRow(entry.value)).toList()),
                         ),
                       ),
                   ],

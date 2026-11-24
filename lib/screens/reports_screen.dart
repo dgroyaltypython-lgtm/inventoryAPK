@@ -26,6 +26,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   int _entryCount = 0;
   bool _loading = true;
   bool _exporting = false;
+  final _searchController = TextEditingController();
+  List<Map<String, Object?>> _rows = [];
 
   DateTime get _start {
     switch (_period) {
@@ -78,16 +80,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   void dispose() {
     refreshSignal.removeListener(_loadSummary);
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadSummary() async {
     setState(() => _loading = true);
     final rows = await AppDatabase.instance.getEntries(start: _start, end: _end);
+    _rows = rows;
+    final filtered = _filteredRows;
     double purchase = 0;
     double used = 0;
     double wastage = 0;
-    for (final row in rows) {
+    for (final row in filtered) {
       final type = row['entry_type']?.toString();
       if (type == 'Purchase') purchase += ((row['amount'] as num?) ?? 0).toDouble();
       if (type == 'Used') used += ((row['quantity'] as num?) ?? 0).toDouble();
@@ -95,10 +100,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
     if (!mounted) return;
     setState(() {
-      _entryCount = rows.length;
+      _entryCount = filtered.length;
       _summary = {'purchase': purchase, 'used': used, 'wastage': wastage};
       _loading = false;
     });
+  }
+
+  List<Map<String, Object?>> get _filteredRows {
+    final q = _searchController.text.trim().toLowerCase();
+    if (q.isEmpty) return _rows;
+    return _rows.where((row) => '${row['name_en']} ${row['name_mr']} ${row['item_code']} ${row['category']} ${row['entry_type']} ${row['supplier']}'.toLowerCase().contains(q)).toList();
   }
 
   @override
@@ -153,6 +164,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
               Expanded(child: Text('${DateFormat('dd MMM yyyy').format(_start)}  —  ${DateFormat('dd MMM yyyy').format(_end)}', style: const TextStyle(color: ink, fontWeight: FontWeight.w800, fontSize: 11.5))),
             ]),
           ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _searchController,
+            onChanged: (_) => setState(() {
+              final filtered = _filteredRows;
+              double purchase = 0, used = 0, wastage = 0;
+              for (final row in filtered) {
+                final type = row['entry_type']?.toString();
+                if (type == 'Purchase') purchase += ((row['amount'] as num?) ?? 0).toDouble();
+                if (type == 'Used') used += ((row['quantity'] as num?) ?? 0).toDouble();
+                if (type == 'Wastage') wastage += ((row['quantity'] as num?) ?? 0).toDouble();
+              }
+              _entryCount = filtered.length;
+              _summary = {'purchase': purchase, 'used': used, 'wastage': wastage};
+            }),
+            decoration: InputDecoration(hintText: 'Search this report by item, category, code or supplier', prefixIcon: const Icon(Icons.search, color: teal), suffixIcon: _searchController.text.isEmpty ? null : IconButton(onPressed: () { _searchController.clear(); setState(() {}); _loadSummary(); }, icon: const Icon(Icons.close)), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none)),
+          ),
           const SizedBox(height: 18),
           const Text('PERIOD SUMMARY', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w800, letterSpacing: 0.8, fontSize: 10)),
           const SizedBox(height: 9),
@@ -176,7 +204,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ]),
               ]),
             ),
-          const SizedBox(height: 23),
+          const SizedBox(height: 18),
+          const Text('MATCHING TRANSACTIONS', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w800, letterSpacing: 0.8, fontSize: 10)),
+          const SizedBox(height: 8),
+          if (_filteredRows.isEmpty)
+            const Padding(padding: EdgeInsets.all(12), child: Text('No matching transactions in this period.', style: TextStyle(color: Colors.black54, fontSize: 12)))
+          else
+            ..._filteredRows.take(30).map((row) => Container(
+              margin: const EdgeInsets.only(bottom: 7), padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(13), border: Border.all(color: const Color(0xFFE6EEEB))),
+              child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(row['name_en']?.toString() ?? 'Item', style: const TextStyle(color: ink, fontWeight: FontWeight.w800, fontSize: 12)),
+                  Text('${row['entry_type']} · ${row['entry_date']} · ${row['category']}', style: const TextStyle(color: Colors.black54, fontSize: 10)),
+                ])),
+                Text('${qtyText((row['quantity'] as num?) ?? 0)} ${row['unit'] ?? ''}', style: const TextStyle(color: teal, fontWeight: FontWeight.w800, fontSize: 11)),
+              ]),
+            )),
+          const SizedBox(height: 20),
           const Text('EXPORT REPORT', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w800, letterSpacing: 0.8, fontSize: 10)),
           const SizedBox(height: 9),
           Row(children: [
@@ -265,8 +310,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
     setState(() => _exporting = true);
     try {
       final path = isPdf
-          ? await ReportService.exportPdf(start: _start, end: _end, label: _periodLabel)
-          : await ReportService.exportCsv(start: _start, end: _end, label: _periodLabel);
+          ? await ReportService.exportPdf(start: _start, end: _end, label: _periodLabel, search: _searchController.text)
+          : await ReportService.exportCsv(start: _start, end: _end, label: _periodLabel, search: _searchController.text);
       if (!mounted) return;
       await SharePlus.instance.share(ShareParams(
         files: [XFile(path)],

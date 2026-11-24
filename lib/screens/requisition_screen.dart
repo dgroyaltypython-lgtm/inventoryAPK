@@ -17,6 +17,7 @@ class RequisitionScreen extends StatefulWidget {
 class _RequisitionScreenState extends State<RequisitionScreen> {
   List<InventoryItem> _items = [];
   final Map<String, TextEditingController> _quantities = {};
+  final _searchController = TextEditingController();
   bool _loading = true;
   bool _sharing = false;
 
@@ -30,6 +31,7 @@ class _RequisitionScreenState extends State<RequisitionScreen> {
   @override
   void dispose() {
     refreshSignal.removeListener(_load);
+    _searchController.dispose();
     for (final controller in _quantities.values) {
       controller.dispose();
     }
@@ -56,8 +58,10 @@ class _RequisitionScreenState extends State<RequisitionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final query = _searchController.text.trim().toLowerCase();
+    final visibleItems = _items.where((item) => query.isEmpty || '${item.nameEn} ${item.nameMr} ${item.code} ${item.category}'.toLowerCase().contains(query)).toList();
     final grouped = <String, List<InventoryItem>>{};
-    for (final item in _items) {
+    for (final item in visibleItems) {
       grouped.putIfAbsent(item.category, () => []).add(item);
     }
     return Scaffold(
@@ -84,7 +88,17 @@ class _RequisitionScreenState extends State<RequisitionScreen> {
                       ]),
                     ),
                   ),
-                  Expanded(child: ListView(padding: const EdgeInsets.fromLTRB(18, 0, 18, 15), children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(hintText: 'Search order items / category / code', prefixIcon: const Icon(Icons.search, color: teal), suffixIcon: _searchController.text.isEmpty ? null : IconButton(onPressed: () { _searchController.clear(); setState(() {}); }, icon: const Icon(Icons.close)), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none)),
+                    ),
+                  ),
+                  Expanded(child: visibleItems.isEmpty
+                      ? const Center(child: Padding(padding: EdgeInsets.all(22), child: Text('No matching order items. Try another search.', style: TextStyle(color: Colors.black54))))
+                      : ListView(padding: const EdgeInsets.fromLTRB(18, 0, 18, 15), children: [
                     for (final group in grouped.entries) ...[
                       Padding(padding: const EdgeInsets.fromLTRB(2, 12, 2, 8), child: Text(group.key, style: const TextStyle(color: teal, fontWeight: FontWeight.w800, fontSize: 13))),
                       for (final item in group.value) _reorderCard(item),
@@ -144,8 +158,10 @@ class _RequisitionScreenState extends State<RequisitionScreen> {
 
   Future<void> _shareRequirement() async {
     final sections = <String>[];
+    final query = _searchController.text.trim().toLowerCase();
+    final visibleItems = _items.where((item) => query.isEmpty || '${item.nameEn} ${item.nameMr} ${item.code} ${item.category}'.toLowerCase().contains(query)).toList();
     final grouped = <String, List<InventoryItem>>{};
-    for (final item in _items) {
+    for (final item in visibleItems) {
       grouped.putIfAbsent(item.category, () => []).add(item);
     }
     for (final group in grouped.entries) {
